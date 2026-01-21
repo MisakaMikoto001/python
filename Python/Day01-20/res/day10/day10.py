@@ -52,11 +52,36 @@ def pack_unpack():
     tuple = 1, 2, 3, 4, 5
     a, *b, c = tuple
     print(f'a:{a}\nb:{b}\nc:{c}\n')
-    a, *b = tuple
+    *a, b = tuple
     print(f'a:{a}\nb:{b}\n')
-    *a, *b = tuple # SyntaxError: multiple starred expressions in assignment
+    # *a, *b = tuple # SyntaxError: multiple starred expressions in assignment
 
+    # 解包对所有序列都成立
+    a, *b = range(1,10,2)
+    print(f'a:{a}\nb:{b}\n')
+
+    a, *b = 'abcdefg'
+    print(f'a:{a}\nb:{b}\n')
+
+    *a, b = [1, 2, 3, 4, 5]
+    print(f'a:{a}\nb:{b}\n')
+
+    a, *b = {1, 2, 3, 4, 5}
+    print(f'a:{a}\nb:{b}\n')
+
+    *a, b = {1:'a', 2:'b', 3:'c', 4:'d', 5:'e'}
+    print(f'a:{a}\nb:{b}\n')
+
+# 交换变量的值
+def swap():
+    a, b = 1, 2
+    a, b = b, a
+    print(f'a:{a}\nb:{b}\n')
+
+    a,b,c = 1, 2, 3
+    a,b,c = c, a, b #c, a, b打包成元组
+    print(f'a:{a}\nb:{b}\nc:{c}\n')
 
 if __name__ == '__main__':
-    pack_unpack()
+    swap()
     pass

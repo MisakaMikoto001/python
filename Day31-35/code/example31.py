@@ -3,6 +3,7 @@
         用来生成列表、集合、字典
 """
 from pygments.lexers import func
+from trio import sleep
 
 
 def formula_of_derivation():
@@ -187,8 +188,8 @@ def using_base_decorator():
 
 # ====== 类方式定义装饰器
 class DECORATORS:
-    ''' 通过类方式定义装饰器 '''
     def __init__(self, output):
+        ''' 通过类方式定义装饰器 '''
         self.output = output
 
     def __call__(self, func):
@@ -335,6 +336,7 @@ def Objects_main_function():
         2. has-a :关联 / 聚合 / 组合
         3. use-a :依赖
 """
+# ======================== 关联 组合
 # 例 扑克游戏
 from enum import Enum,unique
 import random
@@ -345,11 +347,313 @@ class Suits(Enum):
     SPADES, HEART, CLUBS, DIAMONDS = range(4)
 
     def __lt__(self, other):
-        """  """
+        """ 花色比较大小 """
         return self.value < other.value
 
+class Card:
+    """ 牌 """
+    suits = ['♠', '♥', '♣', '♦']
+    ranks = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A']
+
+    def __init__(self, suit, rank):
+        """ 初始化牌 """
+        self.suit = suit
+        self.rank = rank
+
+    def __repr__(self):
+        """ 表示牌 """
+        return f"{self.suits[self.suit.value]}{self.ranks[self.rank - 1]}"
+
+class Poker:
+    """ 扑克游戏 """
+
+    def __init__(self):
+        self.index = 0
+        self.cards = [Card(suit, rank)
+                      for suit in Suits
+                      for rank in range(1,14)] # 初始化扑克牌
+
+    def shuffle(self):
+        """ 洗牌 """
+        random.shuffle(self.cards) # 随机打乱牌组
+        self.index = 0
+
+    def deal(self):
+        """ 发牌 """
+        card = self.cards[self.index]
+        self.index += 1
+        return card
+
+    @property
+    def has_more(self):
+        """ 是否还有牌 """
+        return self.index < len(self.cards)
+
+class Player:
+    """ 玩家 """
+    def __init__(self, name):
+        self.name = name
+        self.hand = [] # 玩家手牌
+
+    def get_one(self, card):
+        """ 获取牌 """
+        self.hand.append(card)
+
+    def sort(self, compare=lambda card: (card.suit, card.rank)):
+        """ 排序 """
+        self.hand.sort(key=compare)# 排序标准就Suit基类的lt方法
+
+def play_poker_main():
+    poker = Poker()
+    poker.shuffle()
+
+    players = [Player('张三'), Player('李四'), Player('王五')]
+    while poker.has_more:
+        """ 游戏循环 """
+        for player in players:
+            """ 玩家循环 """
+            if poker.has_more:
+                """ 发牌 """
+                player.get_one(poker.deal())
+    for player in players:
+        """ 玩家循环排序 """
+        player.sort()
+        print(f'{player.name} 手牌: {player.hand}')
+        player.hand.clear()
+    print('游戏结束')
+
+# ========== 垃圾回收 、循环引用、弱引用 ==========
+# Python 使用自动化内存管理，无需手动释放内存。这种机制称为垃圾回收（Garbage Collection）。
+# 这种管理机制以 引用计数 为基础，同时也引入了 标记-清楚 当一个对象的引用计数为0时，该对象的内存就会被释放。
+"""
+C源码 PyObject 结构体
+typedef struct _object {
+    int refcnt;
+    void *data;
+} PyObject;
+"""
+import sys
+
+class PyObject:
+    _all_instances = []  # 类级别的跟踪列表
+
+    def __init__(self, data):
+        self.data = data
+        self.ob_type = type(data)
+        PyObject._all_instances.append(self)
+
+    def refcnt(self):
+        """计算这个对象被引用的真实次数"""
+        count = 0
+        import gc
+        for obj in gc.get_objects():
+            if obj is self:
+                count += 1
+        return count
+
+def PyObject_Simple():
+    print("=== 真实的引用计数变化 ===")
+
+    # 创建对象 +1
+    a = [1, 2, 3]
+    print(f"刚创建: sys.getrefcount(a) = {sys.getrefcount(a)}")  # 注意：getrefcount 自己也会 +1
+
+    # 赋值给新变量 +1
+    b = a
+    print(f"b = a: sys.getrefcount(a) = {sys.getrefcount(a)}")
+
+    # 再赋值 +1
+    c = a
+    print(f"c = a: sys.getrefcount(a) = {sys.getrefcount(a)}")
+
+    # 放入列表
+    lst = [a]
+    print(f"放入列表: sys.getrefcount(a) = {sys.getrefcount(a)}")
+
+    # 删除引用 -1
+    del b
+    print(f"del b: sys.getrefcount(a) = {sys.getrefcount(a)}")
+
+    # 变量重新赋值 +1
+    c = "new"
+    print(f"c = 'new': sys.getrefcount(a) = {sys.getrefcount(a)}")
+
+    # 从列表移除 -1
+    lst.remove(a)
+    print(f"从列表移除: sys.getrefcount(a) = {sys.getrefcount(a)}")
+
+"""
+引用计数会因为循环引用导致内存泄露，为了解决这个问题，引入了 “标记-清除”和“分代收集”。
+    举例说明就是，在创建一个对象的时候，会被放在第一代中，如果在垃圾检查中活了下来，
+    就会放在第二代，如果在第二代垃圾检查中活了下来，就会放在第三代，类推。
+    
+    以下情况会导致垃圾回收：
+        调用  gc.collect()
+        gc 模块的计数器到达阈值
+        程序退出
+"""
+
+# ============ 混入 （Mixin） ============
+"""
+    混入 （Mixin） 是一种设计模式，用于将多个类的特征组合到一个类中。
+    这种模式在 Python 中通过使用继承来实现。
+    遵循 “单一职责原则”，每个类只负责一个特定功能。
+    举例说明就是，在创建一个类的时候，我们可以继承多个类的特征，从而实现代码的复用。
+    这种模式在 Python 中被称为 混入 （Mixin） 。
+"""
+class SetOnceMappingMixin:
+    """ 自定义混入类  只设置一次的映射类 """
+    __slots__ = () # 不使用 __dict__ 属性
+
+    def __setitem__(self, key, value):
+        if key in self:
+            raise KeyError(str(key)+' already set')
+        return super().__setitem__(key, value) #协作式多重继承
+
+class SetOnceDict(SetOnceMappingMixin, dict):# mixin 必须先于dict
+    """ 自定义字典类  只设置一次的映射类 """
+    pass
+
+def SetNonceDict_main():
+    my_dict = SetOnceDict()
+    my_dict['a'] = 1
+    my_dict['b'] = 2
+    # my_dict['a'] = 3  # 报错
+    print(f'mro: {SetOnceDict.__mro__}')
+
+# ===== mro 方法解析顺序
+class A():
+    def say_hello(self):
+        print('hello,A')
+
+class B(A):
+    pass
+
+class C(A):
+    def say_hello(self):
+        print('hello C')
+
+class D(B, C):
+    pass
+
+def mro_main():
+    print(D.__mro__)
+    D().say_hello()
+
+# ============== 元编程与元类 ==============
+"""
+    对象是类创建的，类是元类创建的。元类创建类的元信息。所有的类都直接或简介的继承自 Object 。
+    所有的元类都直接或间接的继承自 type 类。
+"""
+# 例子 使用元类实现单例模式
+import threading
+
+class SingletonMeta(type):
+    """ 自定义元类  单例模式 """
+    def __init__(cls, *args, **kwargs):
+        cls.__instance = None
+        cls.__lock = threading.RLock()
+        super().__init__(*args, **kwargs)
+
+    def __call__(cls, *args, **kwargs):
+        if cls.__instance is None:
+            with cls.__lock:
+                if cls.__instance is None:
+                    cls.__instance = super().__call__(*args, **kwargs)
+        return cls.__instance
+
+class President(metaclass=SingletonMeta):
+    """ 自定义总统类  单例模式 """
+    pass
+
+def meta_main():
+    p1 = President()
+    p2 = President()
+    print(p1 is p2)  # True
 
 
+# =============== 并发编程 ==============
+"""
+    并发编程是指在程序中，多个任务或线程同时执行，以提高程序的效率和响应性。
+    并发编程的目的是利用多核处理器的并行计算能力，提高程序的执行速度。
+    并发编程的实现方式有多种，包括多线程、多进程、异步编程等。
+    
+    多进程：每个进程执行一个任务，进程之间通过通信进行合作。
+    异步编程：程序在执行过程中，会将任务分解为多个异步操作，每个操作在后台执行，不阻塞主程序的执行。
+"""
+# 例子 多线程
+import glob
+import threading
+import os
+from PIL import Image
+
+PREFIX = 'thread'
+
+def generate__thumbnail(infile, size, format='PNG'):
+    """ 生成指定图片的缩略图 """
+    file, ext = os.path.splitext(infile) # 获取文件名和扩展名
+    file = os.path.basename(file) # 移除路径前缀
+    print(file)
+    outfile = f'{PREFIX}/{file}_{size[0]}_{size[1]}.{ext}' # 生成缩略图文件名
+
+    img = Image.open(infile) # 打开图片
+    img.thumbnail(size, Image.LANCZOS) # 缩略图
+    img.save(outfile, format) # 保存缩略图
+
+def thumbnail_main():
+    """ 多线程生成缩略图 """
+    if not os.path.exists(PREFIX):
+        # """ 如果缩略图文件夹不存在，创建它 """
+        os.makedirs(PREFIX)
+    for infile in glob.glob(r'C:\Users\Administrator\Pictures\Saved Pictures\*.png'):
+        for size in [(32, 32), (64, 64), (128, 128)]:
+            """ 创建线程 """
+            threading.Thread(
+                target=generate__thumbnail,
+                args=(infile, size),
+            ).start()
+
+# 多线程 竞争资源
+from concurrent.futures import  ThreadPoolExecutor
+
+class Account:
+    """ 极限资源类 """
+    def __init__(self):
+        self.balance = 0.0
+        self.lock = threading.Lock()
+
+    def deposit(self, amount):
+        """ 存款 """
+        # 加锁 10000
+        with self.lock:
+            new_balance = amount + self.balance
+            time.sleep(0.001)
+            self.balance = new_balance
+
+        # # 无锁 1100
+        # new_balance = self.balance + amount
+        # time.sleep(0.001)
+        # self.balance = new_balance
+
+def multithreading_main():
+    account = Account()
+
+    # 创建线程池
+    pool = ThreadPoolExecutor(max_workers=10)
+    Futures = []
+    # 提交任务
+    for i in range(100):
+        future = pool.submit(account.deposit, 100)
+        Futures.append(future)
+
+    # 关闭线程池
+    pool.shutdown(wait=True)
+    for future in Futures:
+        future.result()
+    print(account.balance)
+
+
+   # =========================
 
 def main():
     # formula_of_derivation()
@@ -366,9 +670,18 @@ def main():
     # decorator
     # single_decorator()
 
-    Objects_main_function()
-    pass
+    # Objects_main_function()
+    # play_poker_main()
 
+    # PyObject_Simple()
+
+    # SetNonceDict_main()
+    # mro_main()
+
+    # meta_main()
+    # thumbnail_main()
+    multithreading_main()
+    pass
 
 if __name__ == '__main__':
     main()

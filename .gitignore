@@ -1,8 +1,8 @@
 .venv
 .idea
 *.pyc
-Day31-35/code/thread
 __pycache__
+day31-35/code/thread
 
 ### VisualStudioCode ###
 .vscode/*

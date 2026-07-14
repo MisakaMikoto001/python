@@ -13,14 +13,14 @@ r"""
 
 import pymysql
 
-no = int(input("请输入学号："))
-name = input("请输入姓名：")
-location = input("请输入地址：")
+# no = int(input("请输入学号："))
+# name = input("请输入姓名：")
+# location = input("请输入地址：")
 
 # 1创建连接池
-connection = pymysql.connect(host="localhost",port=3306,
-                             user="root",password="123456",
-                             database="word_tool",charset="utf8")
+# connection = pymysql.connect(host="localhost",port=3306,
+#                              user="root",password="123456",
+#                              database="word_tool",charset="utf8")
 
 
 def insert_student(no,name,location):
@@ -124,8 +124,8 @@ def select_student(no):
         connection.close()
 
 # 分页查询
-page = int(input("请输入页码："))
-size = int(input("请输入每页数量："))
+# page = int(input("请输入页码："))
+# size = int(input("请输入每页数量："))
 
 def select_student_by_page(page,size):
     """ select student by page """
@@ -147,10 +147,54 @@ def select_student_by_page(page,size):
         connection.close()
 
 
+# 综合例子
+"""
+    将数据库中的数据导出到excel文件中
+"""
+import openpyxl
+import pymysql
+
+# 创作工作簿对象
+wb = openpyxl.Workbook()
+# 获取默认工作表
+ws = wb.active
+# 表名
+ws.title = "学生信息"
+# 表头
+ws.append(["学号","姓名","地址"])
+
+# 创建连接池
+connection = pymysql.connect(host="127.0.0.1",port=3306,
+                             user="root",password="123456",
+                             database="word_tool",charset="utf8")
+
+def export_student_to_excel(connect, wb, ws):
+    """ export student to excel """
+    try:
+        with connect.cursor() as cursor:
+            sql = """
+            select * from td_student
+            """
+            cursor.execute(sql)
+            rows= cursor.fetchone()
+            while rows:
+                ws.append(rows)
+                rows= cursor.fetchone()
+
+        wb.save("学生信息.xlsx")
+        print("导出成功")
+    except Exception as e:
+        print(e)
+    finally:
+        connect.close()
+        wb.close()
+
+
 
 if __name__ == '__main__':
     # insert_student(no,name,location)
     # delete_student(no)
     # update_student(no,name,location)
     # select_student(no)
-    select_student_by_page(page,size)
+    # select_student_by_page(page,size)
+    export_student_to_excel(connection,wb,ws)

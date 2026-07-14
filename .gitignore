@@ -3,6 +3,8 @@
 *.pyc
 __pycache__
 day31-35/code/thread
+day36-45/code/*.xlsx
+
 
 ### VisualStudioCode ###
 .vscode/*

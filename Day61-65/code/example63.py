@@ -221,21 +221,78 @@ def MultiprocessCommunication():
         3.程序在内存使用方面没有限制并且不强依赖I/O操作(入，文件读写，套接字等等）
 """
 
+
+"""
+    这种异步了解思想即可
+    3.5版本引入并在3.7成为关键字的 async/await 语法
+"""
 # 生成器和协程
 def fib1(int):
     """ 生成器 """
     a, b = 0, 1
     for _ in range(100):
-        a, b = b, a+b
         yield a
+        a, b = b, a+b
 
 def fib_main():
-    gen_obj = fib1(20)
+    gen_obj = fib1(1)
     print(gen_obj)
 
     for value in gen_obj:
         print(value)
 
+# 协程
+def clac_average():
+    """ 协程 """
+    total = 0
+    count = 0
+    average = None
+    # 初始化协程
+    while True:
+        number = yield average
+        total += number
+        count += 1
+        average = total / count
+
+def coordinate_the_process_main():
+    """ 协程的使用场景 """
+    average_obj = clac_average()
+    average_obj.send(None)
+    for _ in range(50):
+        print(f'{average_obj.send(float(input())):.4f}')
+
+
+# async await 语法
+
+# 同步
+import time
+def display1(num):
+    time.sleep(1)
+    print('hello world',num)
+def sync_main():
+    start = time.time()
+    for i in range(1,10):
+        display1(i)
+    print(f'sync_main 耗时: {time.time() - start :.4f}秒')
+# 异步
+import asyncio
+async def display2(num):
+    await asyncio.sleep(1)
+    print('hello world',num)
+
+async def asynchronous_main():
+    start = time.time()
+    tasks = [asyncio.create_task(display2(i)) for i in range(1, 10)]
+    await asyncio.wait(tasks)
+    print(f'asynchronous_main 耗时: {time.time() - start :.4f}秒')
+"""
+    asyncio.run()：Python 3.7+ 的推荐方式，自动创建、运行、关闭事件循环，一个函数搞定所有
+    asyncio.create_task()：将协程包装为 Task 对象，Python 3.13 中 asyncio.wait() 必须传入 Task 而非协程
+    async def + await：asynchronous_main 本身需要 await 等待任务完成，所以必须声明为 async def
+"""
+
+
+#
 
 if __name__ == '__main__':
     # serial_main1()
@@ -252,5 +309,10 @@ if __name__ == '__main__':
 
     # MultiprocessCommunication()
 
-    fib_main()
+    # fib_main()
+    # coordinate_the_process_main()
+    # sync_main()
+    # asyncio.run(asynchronous_main())
+
+
     pass
